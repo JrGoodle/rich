@@ -559,6 +559,7 @@ class Progress(JupyterMixin, RenderHook):
         self.get_time = get_time or self.console.get_time
         self.disable = disable
         self._tasks: Dict[TaskID, Task] = {}
+        self._max_simultaneous_tasks_count: int = 0
         self._live_render = LiveRender(self.get_renderable())
         self._task_index: TaskID = TaskID(0)
         self._refresh_thread: Optional[_RefreshThread] = None
@@ -646,6 +647,8 @@ class Progress(JupyterMixin, RenderHook):
         if self.ipy_widget is not None and self.transient:  # pragma: no cover
             self.ipy_widget.clear_output()
             self.ipy_widget.close()
+        for _ in range(self._max_simultaneous_tasks_count):
+            self.console.control(self._live_render.restore_cursor())
 
     def __enter__(self) -> "Progress":
         self.start()
@@ -950,6 +953,7 @@ class Progress(JupyterMixin, RenderHook):
                 _get_time=self.get_time,
             )
             self._tasks[self._task_index] = task
+            self._max_simultaneous_tasks_count = max(self._max_simultaneous_tasks_count, self._tasks)
             if start:
                 self.start_task(self._task_index)
             self.refresh()
